@@ -49,8 +49,9 @@ class LdapStrategy extends Strategy {
 			!isset($settings['application']['search_name']) ||
 			!isset($settings['application']['search_base']) ||
 			!isset($settings['application']['allowed_attributes'])) {
-			throw new \Exception(
-				'Missing required parameters (connection -> url, port; application -> username, password, search_name, search_base, allowed_attributes'
+			throw new \Exception('Required parameters are missing.
+				(connection -> url, port)(application -> username, password,
+				search_name, search_base, allowed_attributes'
 			);
 		}
 
@@ -60,12 +61,12 @@ class LdapStrategy extends Strategy {
 		$this->application['searchBase'] = $settings['application']['search_base'];
 		$this->application['allowedAttributes'] = (string) $settings['application']['allowed_attributes'];
 
-		$this->connection = @ldap_connect(
+		$this->connection = ldap_connect(
 			$settings['connection']['url'],
 			$settings['connection']['port']
 		);
 
-		$status = @ldap_bind(
+		$status = ldap_bind(
 			$this->connection,
 			$this->application['username'],
 			$this->application['password']
@@ -107,25 +108,20 @@ class LdapStrategy extends Strategy {
 	 * @return User The user we are attempting to authenticate as
 	 */
 	public function login($parameters = array()) {
-		if (!isset($parameters['username']) ||
-			!isset($parameters['password']) ||
-			!isset($parameters['fields']) ||
+		if (!isset($parameters['username'])  ||
+			!isset($parameters['password'])  ||
+			!isset($parameters['fields'])    ||
 			!is_array($parameters['fields']) ||
 			!isset($parameters['searchQuery'])) {
-			throw new \Exception('Username, password, searchQuery, and fields (array) parameters are required to login.');
+			throw new \Exception(
+				'Username, password, searchQuery, and fields (array) parameters are required to login.'
+			);
 		}
 
-		$query = sprintf(
-			$parameters['searchQuery'],
-			'user',
-			$this->application['searchName'],
-			$username
-		);
-
-		$status = @ldap_search(
+		$status = ldap_search(
 			$this->connection,
 			$this->application['searchBase'],
-			$query,
+			$parameters['searchQuery'],
 			array_values($parameters['fields'])
 		);
 
@@ -142,7 +138,7 @@ class LdapStrategy extends Strategy {
 		$user = new User;
 		$fields = $parameters['fields'];
 
-		if ((int) @$result['count'] !== 1) {
+		if (isset($result['count']) && (int) $result['count'] !== 1) {
 			$result = $result[0];
 			//Note this is the only property that isn't returned as the 0th element
 			$user->displayName = $this->getValueOrDefault($result[$fields['displayName']], '');
@@ -165,9 +161,31 @@ class LdapStrategy extends Strategy {
 			throw new \Exception('Something went wrong');
 		}
 
+		if (!empty($this->application['allowedAttributes'])) {
+			$allowed = explode(',', $this->applicaiton['allowedAttributes']);
+			$userAttributes = $this->getValueOrDefault($result['extensionattribute6'][0], '');
+
+			if (!empty($userAttributes)) {
+				$userAttributes = explode(',', $userAttributes);
+			}
+
+			$allowed = false;
+
+			foreach ($userAttributes as $attribute) {
+				if (in_array($attribute, $allowed)) {
+					$allowed = true;
+					break;
+				}
+			}
+
+			if (!$allowed) {
+				throw new AuthenticationException();
+			}
+		}
+
 		//I should probably try to authenticate with this user at some point...
 		try {
-			$auth_status = @ldap_bind(
+			$auth_status = ldap_bind(
 				$this->connection,
 				$this->getValueOrDefault($result['dn'], ''),
 				$parameters['password']
