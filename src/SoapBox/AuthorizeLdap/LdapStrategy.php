@@ -2,12 +2,23 @@
 
 use SoapBox\Authorize\User;
 use SoapBox\Authorize\Strategyies\SingleSignOnStrategy;
+use SoapBox\Authorize\Exceptions\AuthenticationException;
 
 class LdapStrategy extends Strategy {
 
-	const QUERY_STRING = '(&(objectClass=%s)(%s=%s))';
-
+	/**
+	 * A persistent connection to the ldap server. Once established this class
+	 * will internally use this connection.
+	 *
+	 * @var ldap_connect
+	 */
 	private $connection;
+
+	/**
+	 * Our application configurations
+	 *
+	 * @var array
+	 */
 	private $application = [];
 
 	/**
@@ -25,6 +36,11 @@ class LdapStrategy extends Strategy {
 		return $default;
 	}
 
+	/**
+	 * Initializes the LDAP Strategy for logging in.
+	 *
+	 * @param array settings
+	 */
 	public function __construct($settings = array()) {
 		if (!isset($settings['connection']['url']) ||
 			!isset($settings['connection']['port']) ||
@@ -42,7 +58,7 @@ class LdapStrategy extends Strategy {
 		$this->application['password'] = (string) $settings['application']['password'];
 		$this->application['searchName'] = $settings['application']['search_name'];
 		$this->application['searchBase'] = $settings['application']['search_base'];
-		$this->application['allowedAttributes'] = (string) $settings['application']['allowedAttributes'];
+		$this->application['allowedAttributes'] = (string) $settings['application']['allowed_attributes'];
 
 		$this->connection = @ldap_connect(
 			$settings['connection']['url'],
@@ -65,16 +81,42 @@ class LdapStrategy extends Strategy {
 		ldap_set_option($this->connection, LDAP_OPT_REFERRALS, 0);
 	}
 
+	/**
+	 * Login is used to authenticate the user against the remote LDAP server.
+	 *
+	 * @param array parameters A list of parameters defining our user and the
+	 *	data we would like to retreive from the remote strategy.
+	 *	[
+	 *		'username' => 'joe',
+	 *		'password' => 'awe$0me_pa$$w0rd',
+	 *		'searchQuery' =>
+	 *			'(&(objectClass=user)(%s=%s)(objectCategory=user)(|(employeeType=Employee)(employeeType=Consultant)))',
+	 *		'fields' => [
+	 *			'id' => 'samaccountname',
+	 *			'displayName' => 'dn',
+	 *			'username' => '??'
+	 *			'email' => 'mail',
+	 *			'firstname' => 'givenname',
+	 *			'lastname' => 'sn',
+	 *			'office' => 'physicaldeliveryofficename',
+	 *			'anothercustomfield' => 'ooIAmACustomField'
+	 *			...
+	 *		]
+	 *	]
+	 *
+	 * @return User The user we are attempting to authenticate as
+	 */
 	public function login($parameters = array()) {
 		if (!isset($parameters['username']) ||
 			!isset($parameters['password']) ||
 			!isset($parameters['fields']) ||
-			!is_array($parameters['fields'])) {
-			throw new \Exception('Username and password are required to login.');
+			!is_array($parameters['fields']) ||
+			!isset($parameters['searchQuery'])) {
+			throw new \Exception('Username, password, searchQuery, and fields (array) parameters are required to login.');
 		}
 
 		$query = sprintf(
-			QUERY_STRING,
+			$parameters['searchQuery'],
 			'user',
 			$this->application['searchName'],
 			$username
@@ -98,24 +140,41 @@ class LdapStrategy extends Strategy {
 		}
 
 		$user = new User;
+		$fields = $parameters['fields'];
 
 		if ((int) @$result['count'] !== 1) {
 			$result = $result[0];
-			$user->id = $this->getValueOrDefault($result['samaccountname'][0], '');
-			$user->displayName = $this->getValueOrDefault($result['dn'], '');
-			$user->username = $this->getValueOrDefault($result['username'][0], null);
-			$user->email = $this->getValueOrDefault($result['mail'][0], null);
+			//Note this is the only property that isn't returned as the 0th element
+			$user->displayName = $this->getValueOrDefault($result[$fields['displayName']], '');
+			$user->id = $this->getValueOrDefault($result[$fields['id']][0], '');
+			$user->username = $this->getValueOrDefault($result[$fields['username']][0], null);
+			$user->email = $this->getValueOrDefault($result[$fields['email']][0], null);
 			$user->accessToken = 'token';
-			$user->firstname = $this->getValueOrDefault($result['givenname'][0], '');
-			$user->lastname = $this->getValueOrDefault($result['sn'][0], '');
+			$user->firstname = $this->getValueOrDefault($result[$fields['firstname']][0], '');
+			$user->lastname = $this->getValueOrDefault($result[$fields['lastname']][0], '');
+		}
 
-			if($user->email == null) {
-				$user->email = $this->getValueOrDefault($result['userprincipalname'][0], null);
+		foreach ($fields as $key => $value) {
+			if ($key !== 'id' && $key !== 'displayName' && $key !== 'username' &&
+				$key !== 'email' && $key !== 'firstname' && $key != 'lastname') {
+				$user->custom[$key] = $this->getValueOrDefault($result[$key][0], '');
 			}
 		}
 
 		if ($user->displayName === '') {
 			throw new \Exception('Something went wrong');
+		}
+
+		//I should probably try to authenticate with this user at some point...
+		try {
+			$auth_status = @ldap_bind(
+				$this->connection,
+				$this->getValueOrDefault($result['dn'], ''),
+				$parameters['password']
+			);
+			ldap_unbind($this->connection);
+		} catch (\Exception $ex) {
+			throw new AuthenticationException();
 		}
 
 		return $user;
