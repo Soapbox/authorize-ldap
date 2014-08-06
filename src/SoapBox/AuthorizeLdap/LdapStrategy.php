@@ -83,6 +83,33 @@ class LdapStrategy extends Strategy {
 	}
 
 	/**
+	 * Used to determine if the provided userAttributes intersect the allowedAttributes
+	 *
+	 * @param string A CSL of attributes that this Strategy allows
+	 *
+	 * @return bool
+	 */
+	private function isAllowed($userAttributes) {
+		if (empty($this->application['allowedAttributes'])) {
+			return true;
+		}
+
+		$allowed = explode(',', $this->applicaiton['allowedAttributes']);
+
+		if (!empty($userAttributes)) {
+			$userAttributes = explode(',', $userAttributes);
+		}
+
+		foreach ($userAttributes as $attribute) {
+			if (in_array($attribute, $allowed)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Login is used to authenticate the user against the remote LDAP server.
 	 *
 	 * @param array parameters A list of parameters defining our user and the
@@ -161,26 +188,8 @@ class LdapStrategy extends Strategy {
 			throw new \Exception('Something went wrong');
 		}
 
-		if (!empty($this->application['allowedAttributes'])) {
-			$allowed = explode(',', $this->applicaiton['allowedAttributes']);
-			$userAttributes = $this->getValueOrDefault($result['extensionattribute6'][0], '');
-
-			if (!empty($userAttributes)) {
-				$userAttributes = explode(',', $userAttributes);
-			}
-
-			$allowed = false;
-
-			foreach ($userAttributes as $attribute) {
-				if (in_array($attribute, $allowed)) {
-					$allowed = true;
-					break;
-				}
-			}
-
-			if (!$allowed) {
-				throw new AuthenticationException();
-			}
+		if (!$this->isAllowed($this->getValueOrDefault($result['extensionattribute6'][0]))) {
+			throw new AuthenticationException();
 		}
 
 		//I should probably try to authenticate with this user at some point...
