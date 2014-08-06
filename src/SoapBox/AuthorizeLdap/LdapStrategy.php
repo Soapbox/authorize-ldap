@@ -164,16 +164,26 @@ class LdapStrategy extends Strategy {
 
 		$user = new User;
 
-		if (isset($result['count']) && (int) $result['count'] !== 1) {
+		if (isset($result['count']) && (int) $result['count'] === 1) {
 			$result = $result[0];
+
 			//Note this is the only property that isn't returned as the 0th element
-			$user->displayName = $this->getValueOrDefault($result[$fields['displayName']], '');
-			$user->id = $this->getValueOrDefault($result[$fields['id']][0], '');
+			//Also the following two properties of the user are not definable by the end user
+			$user->displayName = $this->getValueOrDefault($result['dn'], '');
+			$user->id = $this->getValueOrDefault($result['samaccountname'][0], '');
+
 			$user->username = $this->getValueOrDefault($result[$fields['username']][0], null);
 			$user->email = $this->getValueOrDefault($result[$fields['email']][0], null);
-			$user->accessToken = 'token';
 			$user->firstname = $this->getValueOrDefault($result[$fields['firstname']][0], '');
 			$user->lastname = $this->getValueOrDefault($result[$fields['lastname']][0], '');
+
+			$user->accessToken = 'token';
+		}
+
+		if ($user->displayName === '') {
+			throw new \InvalidArgumentException(
+				'Display Name was expcted, but "' . $user->displayName . '" was recieved.'
+			);
 		}
 
 		foreach ($fields as $key => $value) {
@@ -183,28 +193,14 @@ class LdapStrategy extends Strategy {
 			}
 		}
 
-		if ($user->displayName === '') {
-			throw new \InvalidArgumentException(
-				'Display Name was expcted, but "' . $user->displayName . '" was recieved.'
-			);
-		}
-
 		if (!$this->isAllowed($this->getValueOrDefault($result['extensionattribute6'][0]))) {
 			throw new AuthenticationException();
 		}
 
-		//I should probably try to authenticate with this user at some point...
-		try {
-			$auth_status = @ldap_bind(
-				$this->connection,
-				$this->getValueOrDefault($result['dn'], ''),
-				$parameters['password']
-			);
-			if ($auth_status === false) {
-				throw new AuthenticationException();
-			}
-			ldap_unbind($this->connection);
-		} catch (\Exception $ex) {
+		$auth_status = @ldap_bind($this->connection, $user->displayName, $parameters['password']);
+		@ldap_unbind($this->connection);
+
+		if ($auth_status === false) {
 			throw new AuthenticationException();
 		}
 
