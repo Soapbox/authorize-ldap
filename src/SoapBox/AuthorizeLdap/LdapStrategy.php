@@ -3,6 +3,8 @@
 use SoapBox\Authorize\User;
 use SoapBox\Authorize\Strategyies\SingleSignOnStrategy;
 use SoapBox\Authorize\Exceptions\AuthenticationException;
+use SoapBox\Authorize\Exceptions\MissingArgumentsException;
+use SoapBox\Authorize\Exceptions\InvalidConfigurationException;
 
 class LdapStrategy extends Strategy {
 
@@ -37,6 +39,33 @@ class LdapStrategy extends Strategy {
 	}
 
 	/**
+	 * Used to determine if the provided userAttributes intersect the allowedAttributes
+	 *
+	 * @param string A CSL of attributes that this Strategy allows
+	 *
+	 * @return bool
+	 */
+	private function isAllowed($userAttributes) {
+		if (empty($this->application['allowedAttributes'])) {
+			return true;
+		}
+
+		if (!empty($userAttributes)) {
+			$userAttributes = explode(',', $userAttributes);
+		}
+
+		$allowed = explode(',', $this->applicaiton['allowedAttributes']);
+
+		foreach ($userAttributes as $attribute) {
+			if (in_array($attribute, $allowed)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Initializes the LDAP Strategy for logging in.
 	 *
 	 * @param array settings
@@ -49,7 +78,7 @@ class LdapStrategy extends Strategy {
 			!isset($settings['application']['search_name']) ||
 			!isset($settings['application']['search_base']) ||
 			!isset($settings['application']['allowed_attributes'])) {
-			throw new \Exception('Required parameters are missing.
+			throw new MissingArgumentsException('Required parameters are missing.
 				(connection -> url, port)(application -> username, password,
 				search_name, search_base, allowed_attributes'
 			);
@@ -61,52 +90,25 @@ class LdapStrategy extends Strategy {
 		$this->application['searchBase'] = $settings['application']['search_base'];
 		$this->application['allowedAttributes'] = (string) $settings['application']['allowed_attributes'];
 
-		$this->connection = ldap_connect(
+		$this->connection = @ldap_connect(
 			$settings['connection']['url'],
 			$settings['connection']['port']
 		);
 
-		$status = ldap_bind(
+		$status = @ldap_bind(
 			$this->connection,
 			$this->application['username'],
 			$this->application['password']
 		);
 
 		if ($this->connection === false || $status === false) {
-			throw new \Exception(
+			throw new InvalidConfigurationException(
 				'Invalid LDAP settings, please fix them and try again'
 			);
 		}
 
 		ldap_set_option($this->connection, LDAP_OPT_PROTOCOL_VERSION, 3);
 		ldap_set_option($this->connection, LDAP_OPT_REFERRALS, 0);
-	}
-
-	/**
-	 * Used to determine if the provided userAttributes intersect the allowedAttributes
-	 *
-	 * @param string A CSL of attributes that this Strategy allows
-	 *
-	 * @return bool
-	 */
-	private function isAllowed($userAttributes) {
-		if (empty($this->application['allowedAttributes'])) {
-			return true;
-		}
-
-		$allowed = explode(',', $this->applicaiton['allowedAttributes']);
-
-		if (!empty($userAttributes)) {
-			$userAttributes = explode(',', $userAttributes);
-		}
-
-		foreach ($userAttributes as $attribute) {
-			if (in_array($attribute, $allowed)) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	/**
@@ -140,30 +142,27 @@ class LdapStrategy extends Strategy {
 			!isset($parameters['fields'])    ||
 			!is_array($parameters['fields']) ||
 			!isset($parameters['searchQuery'])) {
-			throw new \Exception(
+			throw new MissingArgumentsException(
 				'Username, password, searchQuery, and fields (array) parameters are required to login.'
 			);
 		}
 
-		$status = ldap_search(
+		$fields = $parameters['fields'];
+
+		$status = @ldap_search(
 			$this->connection,
 			$this->application['searchBase'],
 			$parameters['searchQuery'],
 			array_values($parameters['fields'])
 		);
 
-		if ($status === false) {
-			throw new \Exception('LDAP search failed');
-		}
+		$result = @ldap_get_entries($this->connection, $status);
 
-		$result = ldap_get_entries($this->connection, $status);
-
-		if ($result === false) {
-			throw new \Exception('Could not retrieve results from LDAP server');
+		if ($result === false || $status === false) {
+			throw new LdapSearchException('LDAP search failed, could not retrieve results.');
 		}
 
 		$user = new User;
-		$fields = $parameters['fields'];
 
 		if (isset($result['count']) && (int) $result['count'] !== 1) {
 			$result = $result[0];
@@ -185,7 +184,9 @@ class LdapStrategy extends Strategy {
 		}
 
 		if ($user->displayName === '') {
-			throw new \Exception('Something went wrong');
+			throw new \InvalidArgumentException(
+				'Display Name was expcted, but "' . $user->displayName . '" was recieved.'
+			);
 		}
 
 		if (!$this->isAllowed($this->getValueOrDefault($result['extensionattribute6'][0]))) {
@@ -194,11 +195,14 @@ class LdapStrategy extends Strategy {
 
 		//I should probably try to authenticate with this user at some point...
 		try {
-			$auth_status = ldap_bind(
+			$auth_status = @ldap_bind(
 				$this->connection,
 				$this->getValueOrDefault($result['dn'], ''),
 				$parameters['password']
 			);
+			if ($auth_status === false) {
+				throw new AuthenticationException();
+			}
 			ldap_unbind($this->connection);
 		} catch (\Exception $ex) {
 			throw new AuthenticationException();
