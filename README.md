@@ -32,9 +32,41 @@ to function
 ### Login
 ```php
 
-```
+use SoapBox\Authroize\Authenticator;
+use SoapBox\Authorize\Exceptions\InvalidStrategyException;
+...
+$settings = [
+	'connection' => [
+		'url' => 'ldap://192.168.50.4',
+		'port' => '3890'
+	],
+	'application' => [
+		'username' => 'cn=admin,dc=puppetlabs,dc=test',
+		'password' => 'test'
+	]
+];
 
-### Endpoint
-```php
+//If you already have an accessToken from a previous authentication attempt
 
+$strategy = new Authenticator('ldap', $settings);
+
+$parameters = [
+	'username' => 'provided_by_user',
+	'password' => 'provided_by_user',
+	'search' => [
+		'query' => '(uid={username})' // Note username will be replaced with the above username
+		'base' => 'dc=puppetlabs,dc=test'
+	],
+	'parameters_map' => [
+		'id' => 'dn',
+		'display_name' => 'cn',
+		'email' => 'mail',
+		'username' => 'mail',
+		'firstname' => 'cn',
+		'lastname' => 'sn',
+		'customParam' => 'extractmeeeee'
+	]
+];
+
+$user = $strategy->authenticate($parameters);
 ```

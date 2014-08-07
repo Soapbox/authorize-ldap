@@ -121,9 +121,11 @@ class LdapStrategy implements Strategy {
 	 *	[
 	 *		'username' => 'joe',
 	 *		'password' => 'awe$0me_pa$$w0rd',
-	 *		'searchQuery' =>
-	 *			'(&(objectClass=user)(%s=%s)(objectCategory=user)(|(employeeType=Employee)(employeeType=Consultant)))',
-	 *		'fields' => [
+	 *		'search' => [
+	 *			'query' => '(uid={username})',
+	 *			'base' => 'dc=puppetlabs,dc=test'
+	 *		]
+	 *		'parameters_map' => [
 	 *			'username' => '??'
 	 *			'email' => 'mail',
 	 *			'firstname' => 'givenname',
@@ -194,7 +196,7 @@ class LdapStrategy implements Strategy {
 
 			if ($fields['display_name'] == 'dn') {
 				$user->displayName = $dn;
-			
+
 			} else {
 				$user->displayName = $this->getValueOrDefault($result[$fields['display_name']][0], '');
 			}
