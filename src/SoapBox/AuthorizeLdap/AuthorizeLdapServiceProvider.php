@@ -1,6 +1,7 @@
 <?php namespace SoapBox\AuthorizeLdap;
 
 use Illuminate\Support\ServiceProvider;
+use SoapBox\Authorize\StrategyFactory;
 
 class AuthorizeLdapServiceProvider extends ServiceProvider {
 
@@ -28,7 +29,7 @@ class AuthorizeLdapServiceProvider extends ServiceProvider {
 	 */
 	public function register()
 	{
-		//
+		StrategyFactory::register('ldap', 'SoapBox\AuthorizeLdap\LdapStrategy');
 	}
 
 	/**

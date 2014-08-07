@@ -17,7 +17,8 @@
     ],
     "require": {
         "php": ">=5.4.0",
-        "ext-ldap": "*"
+        "ext-ldap": "*",
+        "nicmart/string-template": "~0.1"
     },
     "autoload": {
         "psr-0": {
