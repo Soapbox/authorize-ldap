@@ -271,7 +271,7 @@ class LdapStrategy implements Strategy {
 						$actions['authenticated'] = true;
 					}
 				} catch (\Exception $ex) {
-					$errors[] = "Could not connect to authenticate the application user / password";
+					$errors[] = "Could not connect to authenticate the application user / password. Check server url, port, username, and password.";
 				}
 			}
 		}
