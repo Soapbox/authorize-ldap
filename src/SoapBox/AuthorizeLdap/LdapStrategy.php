@@ -2,8 +2,9 @@
 
 use StringTemplate\Engine;
 use SoapBox\Authorize\User;
+use SoapBox\Authorize\Helpers;
 use SoapBox\Authorize\Strategy;
-use SoapBox\AuthorizeLdap\Helpers;
+use SoapBox\Authorize\Helpers as LdapHelpers;
 use SoapBox\Authorize\Exceptions\AuthenticationException;
 use SoapBox\Authorize\Exceptions\MissingArgumentsException;
 use SoapBox\Authorize\Exceptions\InvalidConfigurationException;
@@ -26,21 +27,6 @@ class LdapStrategy implements Strategy {
 	 * @var array
 	 */
 	private $application = [];
-
-	/**
-	 * Returns the default if the value is not set.
-	 *
-	 * @param $value mixed The value you wish to validate.
-	 * @param $default mixed The value you wish to get if value is not set
-	 *
-	 * @return mixed
-	 */
-	private function getValueOrDefault($value, $default) {
-		if (isset($value)) {
-			return $value;
-		}
-		return $default;
-	}
 
 	/**
 	 * Used to determine if the provided userAttributes intersect the allowedAttributes
@@ -159,11 +145,13 @@ class LdapStrategy implements Strategy {
 				'Required arguments are missing. Please ensure you have: username, password, parameters_map -> (id, display_name, username, email, firstname, lastname), search -> (query, base)'
 			);
 		}
+
+		$username = LdapHelpers::sanitize($parameters['username']);
 		$engine = new Engine();
 
 		$fields = $parameters['parameters_map'];
 		$search = $parameters['search'];
-		$query = $engine->render($search['query'], array('username' => $parameters['username']));
+		$query = $engine->render($search['query'], array('username' => $username));
 
 		$status = @ldap_search(
 			$this->connection,
@@ -186,30 +174,30 @@ class LdapStrategy implements Strategy {
 
 			//Note this is the only property that isn't returned as the 0th element
 			//Also the following two properties of the user are not definable by the end user
-			$dn = $this->getValueOrDefault($result['dn'], '');
+			$dn = Helpers::getValueOrDefault($result['dn'], '', null);
 
 			if ($fields['id'] == 'dn') {
 				$user->id = $dn;
 			} else {
-				$user->id = $this->getValueOrDefault($result[$fields['id']][0], '');
+				$user->id = Helpers::getValueOrDefault($result[$fields['id']], '', 0);
 			}
 
 			if ($fields['display_name'] == 'dn') {
 				$user->displayName = $dn;
 
 			} else {
-				$user->displayName = $this->getValueOrDefault($result[$fields['display_name']][0], '');
+				$user->displayName = Helpers::getValueOrDefault($result[$fields['display_name']], '', 0);
 			}
 
 			if ($fields['username'] == 'dn') {
 				$user->username = $dn;
 			} else {
-				$user->username = $this->getValueOrDefault($result[$fields['username']][0], null);
+				$user->username = Helpers::getValueOrDefault($result[$fields['username']], null, 0);
 			}
 
-			$user->email = $this->getValueOrDefault($result[$fields['email']][0], null);
-			$user->firstname = $this->getValueOrDefault($result[$fields['firstname']][0], '');
-			$user->lastname = $this->getValueOrDefault($result[$fields['lastname']][0], '');
+			$user->email = Helpers::getValueOrDefault($result[$fields['email']], null, 0);
+			$user->firstname = Helpers::getValueOrDefault($result[$fields['firstname']], '', 0);
+			$user->lastname = Helpers::getValueOrDefault($result[$fields['lastname']], '', 0);
 
 			$user->accessToken = 'token';
 		}
@@ -222,11 +210,11 @@ class LdapStrategy implements Strategy {
 
 		foreach ($fields as $key => $value) {
 			if ($value != 'dn') {
-				$user->custom[$key] = $this->getValueOrDefault($result[$value][0], '');
+				$user->custom[$key] = Helpers::getValueOrDefault($result[$value], '', 0);
 			}
 		}
 		if (isset($result['extensionattribute6']) && !empty($result['extensionattribute6'])) {
-			if (!$this->isAllowed($this->getValueOrDefault($result['extensionattribute6'][0]))) {
+			if (!$this->isAllowed(Helpers::getValueOrDefault($result['extensionattribute6'], '', 0))) {
 				throw new AuthenticationException();
 			}
 		}
