@@ -10,9 +10,9 @@ class Helpers {
 			$quoted_meta_chars[$key] = '\\'. dechex(ord($value));
 		}
 
-		$str = str_replace ( $meta_chars, $quoted_meta_chars, $str ); //replace them
+		$result = str_replace ( $meta_chars, $quoted_meta_chars, $string ); //replace them
 
-		return ($str);
+		return ($result);
 	}
 
 	public static function sanitize($string = '') {
