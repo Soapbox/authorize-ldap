@@ -227,4 +227,58 @@ class LdapStrategy implements Strategy {
 
 		return $user;
 	}
+
+	public static function validateSettings($settings = array()) {
+		$errors = [];
+		$actions = [
+			'connected' => false,
+			'authenticated' => false
+		];
+
+		$connection = false;
+
+		if( !function_exists('ldap_connect') ) {
+			$errors[] = "ldap_connect function does not exist";
+		} else {
+			try {
+				$connection = ldap_connect(
+					$settings['connection']['url'],
+					$settings['connection']['port']
+				);
+				if ($connection != false) {
+					$actions['connected'] = true;
+				}
+			} catch (\Exception $ex) {
+				$errors[] = "Could not connect to URL / Port";
+			}
+		}
+
+		if( !function_exists('ldap_bind') ) {
+			$errors[] = "ldap_bind function does not exist";
+		} else {
+			if($connection != false) {
+				try {
+					ldap_set_option($connection, LDAP_OPT_PROTOCOL_VERSION, 3);
+					ldap_set_option($connection, LDAP_OPT_REFERRALS, 0);
+
+					$bind = ldap_bind(
+						$connection,
+						$settings['application']['username'],
+						$settings['application']['password']
+					);
+
+					if ($bind != false) {
+						$actions['authenticated'] = true;
+					}
+				} catch (\Exception $ex) {
+					$errors[] = "Could not connect to authenticate the application user / password";
+				}
+			}
+		}
+
+		return [
+			'actions' => $actions,
+			'errors' => $errors
+		];
+	}
 }
