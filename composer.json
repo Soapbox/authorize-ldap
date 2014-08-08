@@ -17,8 +17,10 @@
     ],
     "require": {
         "php": ">=5.4.0",
-        "ext-ldap": "*",
         "nicmart/string-template": "~0.1"
+    },
+    "suggest" : {
+        "ext-ldap": "The php ldap extension is used to run ldap commands."
     },
     "autoload": {
         "psr-0": {
