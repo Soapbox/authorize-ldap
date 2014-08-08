@@ -4,7 +4,7 @@ use StringTemplate\Engine;
 use SoapBox\Authorize\User;
 use SoapBox\Authorize\Helpers;
 use SoapBox\Authorize\Strategy;
-use SoapBox\Authorize\Helpers as LdapHelpers;
+use SoapBox\AuthorizeLdap\Helpers as LdapHelpers;
 use SoapBox\Authorize\Exceptions\AuthenticationException;
 use SoapBox\Authorize\Exceptions\MissingArgumentsException;
 use SoapBox\Authorize\Exceptions\InvalidConfigurationException;
