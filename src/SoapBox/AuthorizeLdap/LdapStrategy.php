@@ -204,9 +204,7 @@ class LdapStrategy implements Strategy {
 		}
 
 		if ($dn === '') {
-			throw new \UserNotFoundException(
-				'Display Name was expcted, but "' . $dn . '" was recieved.'
-			);
+			throw new \UserNotFoundException();
 		}
 
 		foreach ($fields as $key => $value) {
