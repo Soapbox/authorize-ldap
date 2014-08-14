@@ -122,10 +122,13 @@ class LdapStrategy implements Strategy {
 	 *			...
 	 *		]
 	 *	]
+	 * @param callable $store A callback that will store a KVP (Key Value Pair).
+	 * @param callable $load A callback that will return a value stored with the
+	 *	provided key.
 	 *
 	 * @return User The user we are attempting to authenticate as
 	 */
-	public function login($parameters = array()) {
+	public function login($parameters = array(), $store = null, $load = null) {
 		if (!isset($parameters['username'])        ||
 			!isset($parameters['password'])        ||
 
