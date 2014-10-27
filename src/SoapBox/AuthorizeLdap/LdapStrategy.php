@@ -60,11 +60,8 @@ class LdapStrategy implements Strategy {
 	 * Initializes the LDAP Strategy for logging in.
 	 *
 	 * @param array settings
-	 * @param callable $store A callback that will store a KVP (Key Value Pair).
-	 * @param callable $load A callback that will return a value stored with the
-	 *	provided key.
 	 */
-	public function __construct($settings = array(), $store = null, $load = null) {
+	public function __construct($settings = array()) {
 		if (!isset($settings['connection']['url']) ||
 			!isset($settings['connection']['port']) ||
 			!isset($settings['application']['username']) ||

@@ -10,7 +10,7 @@ Add the following to your `composer.json`
 ```
 "require": {
 	...
-	"soapbox/authorize-ldap": "dev-master",
+	"soapbox/authorize-ldap": "1.*",
 	...
 }
 ```

@@ -10,7 +10,7 @@ class AuthorizeLdapServiceProvider extends ServiceProvider {
 	 *
 	 * @var bool
 	 */
-	protected $defer = false;
+	protected $defer = true;
 
 	/**
 	 * Bootstrap the application events.
@@ -27,9 +27,11 @@ class AuthorizeLdapServiceProvider extends ServiceProvider {
 	 *
 	 * @return void
 	 */
-	public function register()
-	{
-		StrategyFactory::register('ldap', 'SoapBox\AuthorizeLdap\LdapStrategy');
+	public function register() {
+		$this->app->bind(
+			'soapbox.authorize.ldap',
+			'SoapBox\AuthorizeLdap\LdapStrategy'
+		);
 	}
 
 	/**
@@ -37,9 +39,8 @@ class AuthorizeLdapServiceProvider extends ServiceProvider {
 	 *
 	 * @return array
 	 */
-	public function provides()
-	{
-		return array();
+	public function provides() {
+		return ['soapbox.authorize.ldap'];
 	}
 
 }
