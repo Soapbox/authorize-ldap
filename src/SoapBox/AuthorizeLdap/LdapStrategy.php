@@ -68,7 +68,10 @@ class LdapStrategy implements Strategy {
 		if (!isset($settings['connection']['url']) ||
 			!isset($settings['connection']['port']) ||
 			!isset($settings['application']['username']) ||
-			!isset($settings['application']['password'])) {
+			!(
+				isset($settings['application']['password']) ||
+				isset($settings['applicaiton']['ntml'])
+			)) {
 			throw new MissingArgumentsException('Required parameters are missing.
 				(connection -> url, port)(application -> username, password,
 				search_name, search_base, allowed_attributes'
@@ -90,11 +93,19 @@ class LdapStrategy implements Strategy {
 		ldap_set_option($this->connection, LDAP_OPT_PROTOCOL_VERSION, 3);
 		ldap_set_option($this->connection, LDAP_OPT_REFERRALS, 0);
 
-		$status = @ldap_bind(
-			$this->connection,
-			$this->application['username'],
-			$this->application['password']
-		);
+		if (isset($settings['application']['password'])) {
+			// If we've been provided a password let's authenticate against it
+
+			$status = @ldap_bind(
+				$this->connection,
+				$this->application['username'],
+				$this->application['password']
+			);
+		} else {
+			// Let's just set this to whatever our ntml is set to, probably true
+
+			$status = (bool) $settings['application']['ntml'];
+		}
 
 		if ($this->connection === false || $status === false) {
 			throw new InvalidConfigurationException(
@@ -130,8 +141,10 @@ class LdapStrategy implements Strategy {
 	 */
 	public function login($parameters = array()) {
 		if (!isset($parameters['username'])        ||
-			!isset($parameters['password'])        ||
-
+			!(
+				isset($parameters['password']) ||
+				isset($parameters['ntml'])
+			) ||
 			!isset($parameters['parameters_map'])    ||
 			!is_array($parameters['parameters_map']) ||
 			!isset($parameters['parameters_map']['id'])  ||
@@ -146,7 +159,7 @@ class LdapStrategy implements Strategy {
 			!isset($parameters['search']['query']) ||
 			!isset($parameters['search']['base'])) {
 			throw new MissingArgumentsException(
-				'Required arguments are missing. Please ensure you have: username, password, parameters_map -> (id, display_name, username, email, firstname, lastname), search -> (query, base)'
+				'Required arguments are missing. Please ensure you have: username, (password || ntml), parameters_map -> (id, display_name, username, email, firstname, lastname), search -> (query, base)'
 			);
 		}
 
@@ -221,7 +234,12 @@ class LdapStrategy implements Strategy {
 			}
 		}
 
-		$auth_status = @ldap_bind($this->connection, $dn, $parameters['password']);
+		if (isset($parameters['password'])) {
+			$auth_status = @ldap_bind($this->connection, $dn, $parameters['password']);
+		} else {
+			$auth_status = (bool) $parameters['ntml'];
+		}
+
 		@ldap_unbind($this->connection);
 
 		if ($auth_status === false) {
