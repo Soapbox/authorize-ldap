@@ -4,6 +4,8 @@ use StringTemplate\Engine;
 use SoapBox\Authorize\User;
 use SoapBox\Authorize\Helpers;
 use SoapBox\Authorize\Strategy;
+use SoapBox\Authorize\Session;
+use SoapBox\Authorize\Router;
 use SoapBox\AuthorizeLdap\Helpers as LdapHelpers;
 use SoapBox\Authorize\Exceptions\AuthenticationException;
 use SoapBox\Authorize\Exceptions\MissingArgumentsException;
@@ -28,6 +30,21 @@ class LdapStrategy implements Strategy {
 	 * @var array
 	 */
 	private $application = [];
+
+	/**
+	 * The session that can be used to store session data between
+	 * requests / redirects
+	 *
+	 * @var Session
+	 */
+	private $session;
+
+	/**
+	 * The router that can be used to redirect the user between views
+	 *
+	 * @var Router
+	 */
+	private $router;
 
 	/**
 	 * Used to determine if the provided userAttributes intersect the allowedAttributes
@@ -60,8 +77,10 @@ class LdapStrategy implements Strategy {
 	 * Initializes the LDAP Strategy for logging in.
 	 *
 	 * @param array settings
+	 * @param Session $session Provides the strategy a place to store / retrieve data
+	 * @param Router $router Provides the strategy a mechanism to redirect users
 	 */
-	public function __construct($settings = array()) {
+	public function __construct(array $settings = [], Session $session, Router $router) {
 		if (!isset($settings['connection']['url']) ||
 			!isset($settings['connection']['port']) ||
 			!isset($settings['application']['username']) ||
@@ -74,6 +93,9 @@ class LdapStrategy implements Strategy {
 				search_name, search_base, allowed_attributes'
 			);
 		}
+
+		$this->session = $session;
+		$this->router = $router;
 
 		$this->application['username'] = (string) $settings['application']['username'];
 		$this->application['password'] = (string) $settings['application']['password'];
@@ -136,7 +158,7 @@ class LdapStrategy implements Strategy {
 	 *
 	 * @return User The user we are attempting to authenticate as
 	 */
-	public function login($parameters = array()) {
+	public function login(array $parameters = []) {
 		if (!isset($parameters['username'])        ||
 			!(
 				isset($parameters['password']) ||
@@ -165,7 +187,7 @@ class LdapStrategy implements Strategy {
 
 		$fields = $parameters['parameters_map'];
 		$search = $parameters['search'];
-		$query = $engine->render($search['query'], array('username' => $username));
+		$query = $engine->render($search['query'], ['username' => $username]);
 
 		$status = @ldap_search(
 			$this->connection,
@@ -246,7 +268,7 @@ class LdapStrategy implements Strategy {
 		return $user;
 	}
 
-	public static function validateSettings($settings = array()) {
+	public static function validateSettings($settings = []) {
 		$errors = [];
 		$actions = [
 			'connected' => false,
