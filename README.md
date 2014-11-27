@@ -94,6 +94,7 @@ $settings = [
 	],
 	'application' => [
 		'username' => 'cn=admin,dc=puppetlabs,dc=test',
+		'password' => 'adminPassword',
 		'ntml' => true
 	]
 ];
@@ -104,7 +105,6 @@ $strategy = new Authenticator('ldap', $settings);
 
 $parameters = [
 	'username' => 'provided_by_user',
-	'ntml' => true,
 	'search' => [
 		'query' => '(uid={username})' // Note username will be replaced with the above username
 		'base' => 'dc=puppetlabs,dc=test'
