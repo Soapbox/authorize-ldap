@@ -68,10 +68,7 @@ class LdapStrategy implements Strategy {
 		if (!isset($settings['connection']['url']) ||
 			!isset($settings['connection']['port']) ||
 			!isset($settings['application']['username']) ||
-			!(
-				isset($settings['application']['password']) ||
-				isset($settings['applicaiton']['ntml'])
-			)) {
+			!isset($settings['application']['password'])) {
 			throw new MissingArgumentsException('Required parameters are missing.
 				(connection -> url, port)(application -> username, password,
 				search_name, search_base, allowed_attributes'
@@ -80,6 +77,13 @@ class LdapStrategy implements Strategy {
 
 		$this->application['username'] = (string) $settings['application']['username'];
 		$this->application['password'] = (string) $settings['application']['password'];
+
+		if (isset($settings['application']['ntml'])) {
+			$this->application['ntml'] = (bool) $settings['ntml'];
+		} else {
+			$this->application['ntml'] = (bool) false;
+		}
+
 		$this->application['allowedAttributes'] =
 			isset($settings['application']['allowed_attributes']) ?
 				$settings['application']['allowed_attributes'] :
@@ -93,19 +97,11 @@ class LdapStrategy implements Strategy {
 		ldap_set_option($this->connection, LDAP_OPT_PROTOCOL_VERSION, 3);
 		ldap_set_option($this->connection, LDAP_OPT_REFERRALS, 0);
 
-		if (isset($settings['application']['password'])) {
-			// If we've been provided a password let's authenticate against it
-
-			$status = @ldap_bind(
-				$this->connection,
-				$this->application['username'],
-				$this->application['password']
-			);
-		} else {
-			// Let's just set this to whatever our ntml is set to, probably true
-
-			$status = (bool) $settings['application']['ntml'];
-		}
+		$status = @ldap_bind(
+			$this->connection,
+			$this->application['username'],
+			$this->application['password']
+		);
 
 		if ($this->connection === false || $status === false) {
 			throw new InvalidConfigurationException(
@@ -141,10 +137,7 @@ class LdapStrategy implements Strategy {
 	 */
 	public function login($parameters = array()) {
 		if (!isset($parameters['username'])        ||
-			!(
-				isset($parameters['password']) ||
-				isset($parameters['ntml'])
-			) ||
+			!(!$this->application['ntml'] && isset($parameters['password'])) ||
 			!isset($parameters['parameters_map'])    ||
 			!is_array($parameters['parameters_map']) ||
 			!isset($parameters['parameters_map']['id'])  ||
@@ -237,7 +230,7 @@ class LdapStrategy implements Strategy {
 		if (isset($parameters['password'])) {
 			$auth_status = @ldap_bind($this->connection, $dn, $parameters['password']);
 		} else {
-			$auth_status = (bool) $parameters['ntml'];
+			$auth_status = (bool) $this->application['ntml'];
 		}
 
 		@ldap_unbind($this->connection);
