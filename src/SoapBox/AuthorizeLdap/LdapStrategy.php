@@ -79,7 +79,7 @@ class LdapStrategy implements Strategy {
 		$this->application['password'] = (string) $settings['application']['password'];
 
 		if (isset($settings['application']['ntml'])) {
-			$this->application['ntml'] = (bool) $settings['ntml'];
+			$this->application['ntml'] = (bool) $settings['application']['ntml'];
 		} else {
 			$this->application['ntml'] = (bool) false;
 		}
