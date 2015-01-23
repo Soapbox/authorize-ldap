@@ -213,7 +213,7 @@ class LdapStrategy implements Strategy {
 		}
 
 		if ($dn === '') {
-			throw new \UserNotFoundException();
+			throw new UserNotFoundException();
 		}
 
 		foreach ($fields as $key => $value) {
