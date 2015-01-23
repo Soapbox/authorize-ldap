@@ -8,7 +8,7 @@ use SoapBox\AuthorizeLdap\Helpers as LdapHelpers;
 use SoapBox\Authorize\Exceptions\AuthenticationException;
 use SoapBox\Authorize\Exceptions\MissingArgumentsException;
 use SoapBox\Authorize\Exceptions\InvalidConfigurationException;
-use SoapBox\Authorize\Exceptions\UserNotFoundException;
+use SoapBox\AuthorizeLdap\Exceptions\UserNotFoundException;
 
 class LdapStrategy implements Strategy {
 
