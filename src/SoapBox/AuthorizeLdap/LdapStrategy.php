@@ -45,7 +45,7 @@ class LdapStrategy implements Strategy {
 			$userAttributes = explode(',', $userAttributes);
 		}
 
-		$allowed = explode(',', $this->applicaiton['allowedAttributes']);
+		$allowed = explode(',', $this->application['allowedAttributes']);
 
 		foreach ($userAttributes as $attribute) {
 			if (in_array($attribute, $allowed)) {
