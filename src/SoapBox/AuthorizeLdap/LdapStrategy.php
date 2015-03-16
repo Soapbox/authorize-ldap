@@ -217,7 +217,7 @@ class LdapStrategy implements Strategy {
 		}
 
 		foreach ($fields as $key => $value) {
-			if ($value != 'dn') {
+			if ($value != 'dn' && isset($result[$value])) {
 				$user->custom[$key] = Helpers::getValueOrDefault($result[$value], '', 0);
 			}
 		}
