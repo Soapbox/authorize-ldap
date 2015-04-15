@@ -110,32 +110,7 @@ class LdapStrategy implements Strategy {
 		}
 	}
 
-	/**
-	 * Login is used to authenticate the user against the remote LDAP server.
-	 *
-	 * @param array parameters A list of parameters defining our user and the
-	 *	data we would like to retreive from the remote strategy.
-	 *	[
-	 *		'username' => 'joe',
-	 *		'password' => 'awe$0me_pa$$w0rd',
-	 *		'search' => [
-	 *			'query' => '(uid={username})',
-	 *			'base' => 'dc=puppetlabs,dc=test'
-	 *		]
-	 *		'parameters_map' => [
-	 *			'username' => '??'
-	 *			'email' => 'mail',
-	 *			'firstname' => 'givenname',
-	 *			'lastname' => 'sn',
-	 *			'office' => 'physicaldeliveryofficename',
-	 *			'anothercustomfield' => 'ooIAmACustomField'
-	 *			...
-	 *		]
-	 *	]
-	 *
-	 * @return User The user we are attempting to authenticate as
-	 */
-	public function login($parameters = array()) {
+	public function getUser($parameters = array()) {
 		if (!isset($parameters['username'])        ||
 			!(!$this->application['ntml'] && isset($parameters['password'])) ||
 			!isset($parameters['parameters_map'])    ||
@@ -226,6 +201,38 @@ class LdapStrategy implements Strategy {
 				throw new AuthenticationException();
 			}
 		}
+
+		return $user;
+	}
+
+	/**
+	 * Login is used to authenticate the user against the remote LDAP server.
+	 *
+	 * @param array parameters A list of parameters defining our user and the
+	 *	data we would like to retreive from the remote strategy.
+	 *	[
+	 *		'username' => 'joe',
+	 *		'password' => 'awe$0me_pa$$w0rd',
+	 *		'search' => [
+	 *			'query' => '(uid={username})',
+	 *			'base' => 'dc=puppetlabs,dc=test'
+	 *		]
+	 *		'parameters_map' => [
+	 *			'username' => '??'
+	 *			'email' => 'mail',
+	 *			'firstname' => 'givenname',
+	 *			'lastname' => 'sn',
+	 *			'office' => 'physicaldeliveryofficename',
+	 *			'anothercustomfield' => 'ooIAmACustomField'
+	 *			...
+	 *		]
+	 *	]
+	 *
+	 * @return User The user we are attempting to authenticate as
+	 */
+	public function login($parameters = array()) {
+
+		$user = $this->getUser($parameters);
 
 		if (isset($parameters['password'])) {
 			$auth_status = @ldap_bind($this->connection, $dn, $parameters['password']);
