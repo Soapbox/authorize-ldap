@@ -178,7 +178,7 @@ class LdapStrategy implements Strategy {
 
 		$result = @ldap_get_entries($this->connection, $status);
 
-		if ($this->result === false || $status === false) {
+		if ($result === false || $status === false) {
 			throw new LdapSearchException('LDAP search failed, could not retrieve results.');
 		}
 
