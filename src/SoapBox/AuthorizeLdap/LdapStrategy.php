@@ -117,6 +117,34 @@ class LdapStrategy implements Strategy {
 		}
 	}
 
+	private function validateInput($parameters, $requiresPassword = false) {
+		if (!isset($parameters['username'])        ||
+			!isset($parameters['parameters_map'])    ||
+			!is_array($parameters['parameters_map']) ||
+			!isset($parameters['parameters_map']['id'])  ||
+			!isset($parameters['parameters_map']['display_name'])  ||
+			!isset($parameters['parameters_map']['username'])  ||
+			!isset($parameters['parameters_map']['email'])     ||
+			!isset($parameters['parameters_map']['firstname']) ||
+			!isset($parameters['parameters_map']['lastname'])  ||
+			!isset($parameters['search'])          ||
+			!is_array($parameters['search'])       ||
+			!isset($parameters['search']['query']) ||
+			!isset($parameters['search']['base'])) {
+			throw new MissingArgumentsException(
+				'Required arguments are missing. Please ensure you have: username, parameters_map -> (id, display_name, username, email, firstname, lastname), search -> (query, base)'
+			);
+		}
+
+		if ($requiresPassword) {
+			if ( !(!$this->application['ntml'] && isset($parameters['password'])) ) {
+				throw new MissingArgumentsException(
+					'Required arguments are missing. Please ensure you have: (password || ntml)'
+				);
+			}
+		}
+	}
+
 	/**
 	 * Get the user from the remote LDAP server.
 	 *
@@ -140,27 +168,10 @@ class LdapStrategy implements Strategy {
 	 *		]
 	 *	]
 	 *
-	 * @return User The user we are attempting to authenticate as
+	 * @return User The user we are requesting
 	 */
 	public function getUser($parameters = array()) {
-		if (!isset($parameters['username'])        ||
-			!isset($parameters['parameters_map'])    ||
-			!is_array($parameters['parameters_map']) ||
-			!isset($parameters['parameters_map']['id'])  ||
-			!isset($parameters['parameters_map']['display_name'])  ||
-			!isset($parameters['parameters_map']['username'])  ||
-			!isset($parameters['parameters_map']['email'])     ||
-			!isset($parameters['parameters_map']['firstname']) ||
-			!isset($parameters['parameters_map']['lastname'])  ||
-
-			!isset($parameters['search'])          ||
-			!is_array($parameters['search'])       ||
-			!isset($parameters['search']['query']) ||
-			!isset($parameters['search']['base'])) {
-			throw new MissingArgumentsException(
-				'Required arguments are missing. Please ensure you have: username, parameters_map -> (id, display_name, username, email, firstname, lastname), search -> (query, base)'
-			);
-		}
+		$this->validateInput($parameters);
 
 		$username = LdapHelpers::sanitize($parameters['username']);
 		$engine = new Engine();
@@ -263,14 +274,9 @@ class LdapStrategy implements Strategy {
 	 */
 	public function login($parameters = array()) {
 
+		$this->validateInput($parameters, true);
 		$user = $this->getUser($parameters);
 		$dn = Helpers::getValueOrDefault($this->result['dn'], '', null);
-
-		if ( !(!$this->application['ntml'] && isset($parameters['password'])) ) {
-			throw new MissingArgumentsException(
-				'Required arguments are missing. Please ensure you have: (password || ntml)'
-			);
-		}
 
 		if (isset($parameters['password'])) {
 			$auth_status = @ldap_bind($this->connection, $dn, $parameters['password']);
