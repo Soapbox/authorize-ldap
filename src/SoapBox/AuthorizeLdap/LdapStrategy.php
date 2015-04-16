@@ -30,6 +30,13 @@ class LdapStrategy implements Strategy {
 	private $application = [];
 
 	/**
+	 * Search result
+	 *
+	 * @var array
+	 */
+	private $result = [];
+
+	/**
 	 * Used to determine if the provided userAttributes intersect the allowedAttributes
 	 *
 	 * @param string A CSL of attributes that this Strategy allows
@@ -110,9 +117,33 @@ class LdapStrategy implements Strategy {
 		}
 	}
 
+	/**
+	 * Get the user from the remote LDAP server.
+	 *
+	 * @param array parameters A list of parameters defining our user and the
+	 *	data we would like to retreive from the remote strategy.
+	 *	[
+	 *		'username' => 'joe',
+	 *		'password' => 'awe$0me_pa$$w0rd',
+	 *		'search' => [
+	 *			'query' => '(uid={username})',
+	 *			'base' => 'dc=puppetlabs,dc=test'
+	 *		]
+	 *		'parameters_map' => [
+	 *			'username' => '??'
+	 *			'email' => 'mail',
+	 *			'firstname' => 'givenname',
+	 *			'lastname' => 'sn',
+	 *			'office' => 'physicaldeliveryofficename',
+	 *			'anothercustomfield' => 'ooIAmACustomField'
+	 *			...
+	 *		]
+	 *	]
+	 *
+	 * @return User The user we are attempting to authenticate as
+	 */
 	public function getUser($parameters = array()) {
 		if (!isset($parameters['username'])        ||
-			!(!$this->application['ntml'] && isset($parameters['password'])) ||
 			!isset($parameters['parameters_map'])    ||
 			!is_array($parameters['parameters_map']) ||
 			!isset($parameters['parameters_map']['id'])  ||
@@ -127,7 +158,7 @@ class LdapStrategy implements Strategy {
 			!isset($parameters['search']['query']) ||
 			!isset($parameters['search']['base'])) {
 			throw new MissingArgumentsException(
-				'Required arguments are missing. Please ensure you have: username, (password || ntml), parameters_map -> (id, display_name, username, email, firstname, lastname), search -> (query, base)'
+				'Required arguments are missing. Please ensure you have: username, parameters_map -> (id, display_name, username, email, firstname, lastname), search -> (query, base)'
 			);
 		}
 
@@ -147,7 +178,7 @@ class LdapStrategy implements Strategy {
 
 		$result = @ldap_get_entries($this->connection, $status);
 
-		if ($result === false || $status === false) {
+		if ($this->result === false || $status === false) {
 			throw new LdapSearchException('LDAP search failed, could not retrieve results.');
 		}
 
@@ -155,34 +186,34 @@ class LdapStrategy implements Strategy {
 		$dn = '';
 
 		if (isset($result['count']) && (int) $result['count'] === 1) {
-			$result = $result[0];
+			$this->result = $result[0];
 
 			//Note this is the only property that isn't returned as the 0th element
 			//Also the following two properties of the user are not definable by the end user
-			$dn = Helpers::getValueOrDefault($result['dn'], '', null);
+			$dn = Helpers::getValueOrDefault($this->result['dn'], '', null);
 
 			if ($fields['id'] == 'dn') {
 				$user->id = $dn;
 			} else {
-				$user->id = Helpers::getValueOrDefault($result[$fields['id']], '', 0);
+				$user->id = Helpers::getValueOrDefault($this->result[$fields['id']], '', 0);
 			}
 
 			if ($fields['display_name'] == 'dn') {
 				$user->displayName = $dn;
 
 			} else {
-				$user->displayName = Helpers::getValueOrDefault($result[$fields['display_name']], '', 0);
+				$user->displayName = Helpers::getValueOrDefault($this->result[$fields['display_name']], '', 0);
 			}
 
 			if ($fields['username'] == 'dn') {
 				$user->username = $dn;
 			} else {
-				$user->username = Helpers::getValueOrDefault($result[$fields['username']], null, 0);
+				$user->username = Helpers::getValueOrDefault($this->result[$fields['username']], null, 0);
 			}
 
-			$user->email = Helpers::getValueOrDefault($result[$fields['email']], null, 0);
-			$user->firstname = Helpers::getValueOrDefault($result[$fields['firstname']], '', 0);
-			$user->lastname = Helpers::getValueOrDefault($result[$fields['lastname']], '', 0);
+			$user->email = Helpers::getValueOrDefault($this->result[$fields['email']], null, 0);
+			$user->firstname = Helpers::getValueOrDefault($this->result[$fields['firstname']], '', 0);
+			$user->lastname = Helpers::getValueOrDefault($this->result[$fields['lastname']], '', 0);
 
 			$user->accessToken = 'token';
 		}
@@ -192,12 +223,12 @@ class LdapStrategy implements Strategy {
 		}
 
 		foreach ($fields as $key => $value) {
-			if ($value != 'dn' && isset($result[$value])) {
-				$user->custom[$key] = Helpers::getValueOrDefault($result[$value], '', 0);
+			if ($value != 'dn' && isset($this->result[$value])) {
+				$user->custom[$key] = Helpers::getValueOrDefault($this->result[$value], '', 0);
 			}
 		}
-		if (isset($result['extensionattribute6']) && !empty($result['extensionattribute6'])) {
-			if (!$this->isAllowed(Helpers::getValueOrDefault($result['extensionattribute6'], '', 0))) {
+		if (isset($this->result['extensionattribute6']) && !empty($this->result['extensionattribute6'])) {
+			if (!$this->isAllowed(Helpers::getValueOrDefault($this->result['extensionattribute6'], '', 0))) {
 				throw new AuthenticationException();
 			}
 		}
@@ -233,6 +264,13 @@ class LdapStrategy implements Strategy {
 	public function login($parameters = array()) {
 
 		$user = $this->getUser($parameters);
+		$dn = Helpers::getValueOrDefault($this->result['dn'], '', null);
+
+		if ( !(!$this->application['ntml'] && isset($parameters['password'])) ) {
+			throw new MissingArgumentsException(
+				'Required arguments are missing. Please ensure you have: (password || ntml)'
+			);
+		}
 
 		if (isset($parameters['password'])) {
 			$auth_status = @ldap_bind($this->connection, $dn, $parameters['password']);
