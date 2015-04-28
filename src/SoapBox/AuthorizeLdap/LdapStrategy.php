@@ -96,7 +96,7 @@ class LdapStrategy implements Strategy {
 				$settings['application']['allowed_attributes'] :
 				'';
 
-		if ( empty($settings['connection']['port']) ) {
+		if (empty($settings['connection']['port'])) {
 			$this->connection = @ldap_connect($settings['connection']['url']);
 		} else {
 			$this->connection = @ldap_connect(
