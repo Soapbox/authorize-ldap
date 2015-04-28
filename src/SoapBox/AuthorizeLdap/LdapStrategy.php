@@ -96,10 +96,14 @@ class LdapStrategy implements Strategy {
 				$settings['application']['allowed_attributes'] :
 				'';
 
-		$this->connection = @ldap_connect(
-			$settings['connection']['url'],
-			$settings['connection']['port']
-		);
+		if ( empty($settings['connection']['port']) ) {
+			$this->connection = @ldap_connect($settings['connection']['url']);
+		} else {
+			$this->connection = @ldap_connect(
+				$settings['connection']['url'],
+				$settings['connection']['port']
+			);
+		}
 
 		ldap_set_option($this->connection, LDAP_OPT_PROTOCOL_VERSION, 3);
 		ldap_set_option($this->connection, LDAP_OPT_REFERRALS, 0);
