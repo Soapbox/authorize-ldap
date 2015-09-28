@@ -215,7 +215,6 @@ class LdapStrategy implements Strategy {
 
 			if ($fields['display_name'] == 'dn') {
 				$user->displayName = $dn;
-
 			} else {
 				$user->displayName = Helpers::getValueOrDefault($this->result[$fields['display_name']], '', 0);
 			}
@@ -231,6 +230,11 @@ class LdapStrategy implements Strategy {
 			$user->lastname = Helpers::getValueOrDefault($this->result[$fields['lastname']], '', 0);
 
 			$user->accessToken = 'token';
+
+			$keys = ['id', 'display_name', 'username', 'email', 'firstname', 'lastname'];
+			foreach ($keys as $key) {
+				unset($fields[$key]);
+			}
 		}
 
 		if ($dn === '') {
